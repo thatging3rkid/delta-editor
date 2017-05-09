@@ -1,12 +1,12 @@
 cc = gcc
 flags = -Wall -Wextra -pedantic -std=c99 -ggdb
+libflags = -lncurses
 
-all: delta.o
-	$(cc) $(flags) delta.o -o delta.out
-	rm delta.o
-
-delta.o:
-	$(cc) $(flags) -c delta.c
+all:
+	$(cc) $(flags) delta.c -o delta $(libflags)
 
 clean:
 	rm delta.o delta.out
+
+install:
+	@echo Installation not yet supported
