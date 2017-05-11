@@ -7,7 +7,11 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
 #include <ncurses.h>
+
+#define HEADER_HEIGHT 1
 
 typedef struct {
     unsigned int x;
@@ -23,6 +27,10 @@ typedef struct {
     FileLine ** data;
     int len;
 } FileContents;
+
+static unsigned char linenum_width = 1;
+static int max_row_len;
+static int max_col_len;
 
 static FileContents * read_file(FILE * fp) {
     fseek(fp, 0, SEEK_SET);
@@ -93,12 +101,14 @@ static void fc_cleanup(FileContents * fc) {
 }
 
 static void draw_file(FileContents * fc, int text_start) {
-    int row, col;
-    getmaxyx(stdscr, row, col);
-    const int max_len = text_start + row - 15;
-    for (int i = 0; i < fc->len || i < max_len; i += 1) {
+    for (int i = 0; i < 20; i += 1) {
         printw("%s", fc->data[i]->data);
     }
+}
+
+static bool valid_move(unsigned int x, unsigned int y, FileContents * fc) {
+    return (x > linenum_width && x <= (unsigned int) fc->data[y]->len &&
+            y > HEADER_HEIGHT && y <= (unsigned int) fc->len);
 }
 
 static int edit_file(char * filename) {
@@ -115,25 +125,25 @@ static int edit_file(char * filename) {
 
     FileContents * fc = read_file(fp);
     draw_file(fc, 1);
-    move(1,1);
+    move(1, 1);
     refresh();
     
     int input;
 
 
 
-    CursorPos pos = {.x = 1, .y = 1};
+    CursorPos pos = {.x = 2, .y = 2};
     while (true) {
         input = getch();
-
-        if (input == KEY_UP) {
+        
+        if (input == KEY_UP && valid_move(pos.x, pos.y - 1, fc)) {
             pos.y -= 1;
-        } else if (input == KEY_DOWN) {
+        } else if (input == KEY_DOWN && valid_move(pos.x, pos.y + 1, fc)) {
             pos.y += 1;
         }
-        if (input == KEY_LEFT) {
+        if (input == KEY_LEFT  && valid_move(pos.x - 1, pos.y, fc)) {
             pos.x -= 1;
-        } else if (input == KEY_RIGHT) {
+        } else if (input == KEY_RIGHT && valid_move(pos.x + 1, pos.y, fc)) {
             pos.x += 1;
         }
 
