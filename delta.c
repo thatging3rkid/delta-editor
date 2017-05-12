@@ -12,6 +12,7 @@
 #include <ncurses.h>
 
 #define HEADER_HEIGHT 1
+#define VERSION "v0.1"
 
 typedef struct {
     unsigned int x;
@@ -100,15 +101,24 @@ static void fc_cleanup(FileContents * fc) {
     fc = NULL;
 }
 
+static void draw_header(char * filename) {
+    attron(COLOR_PAIR(1));
+
+    printw("delta\t\t%s\t\t%s\n", filename, VERSION);
+    
+    attroff(COLOR_PAIR(1));
+}
+
 static void draw_file(FileContents * fc, int text_start) {
-    for (int i = 0; i < 20; i += 1) {
-        printw("%s", fc->data[i]->data);
+    
+    for (int i = 1; i < 20; i += 1) {
+        mvprintw(i, 0, "%i%s", 0, fc->data[i]->data);
     }
 }
 
 static bool valid_move(unsigned int x, unsigned int y, FileContents * fc) {
-    return (x > linenum_width && x <= (unsigned int) fc->data[y]->len &&
-            y > HEADER_HEIGHT && y <= (unsigned int) fc->len);
+    return (x >= linenum_width && x < (unsigned int) fc->data[y]->len &&
+            y >= HEADER_HEIGHT && y < (unsigned int) fc->len);
 }
 
 static int edit_file(char * filename) {
@@ -123,16 +133,20 @@ static int edit_file(char * filename) {
     noecho();  // Don't echo characters to the terminal
     keypad(stdscr, TRUE); // Enable reading of all keys
 
+    // Make the color pairs
+    start_color();
+    init_pair(1, COLOR_BLACK, COLOR_WHITE);
+
+    
     FileContents * fc = read_file(fp);
+    draw_header(filename);
     draw_file(fc, 1);
     move(1, 1);
     refresh();
     
     int input;
 
-
-
-    CursorPos pos = {.x = 2, .y = 2};
+    CursorPos pos = {.x = 1, .y = 1};
     while (true) {
         input = getch();
         
