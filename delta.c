@@ -146,7 +146,7 @@ static int edit_file(char * filename) {
     
     int input;
 
-    CursorPos pos = {.x = 1, .y = 1};
+    CursorPos pos = {.x = 1, .y = 0};
     while (true) {
         input = getch();
         
