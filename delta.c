@@ -111,14 +111,14 @@ static void draw_header(char * filename) {
 
 static void draw_file(FileContents * fc, int text_start) {
     
-    for (int i = 1; i < 20; i += 1) {
-        mvprintw(i, 0, "%i%s", 0, fc->data[i]->data);
+    for (int i = 0; i < 20; i += 1) {
+        mvprintw(i + 1, 0, "%i%s", 0, fc->data[i]->data);
     }
 }
 
 static bool valid_move(unsigned int x, unsigned int y, FileContents * fc) {
-    return (x >= linenum_width && x < (unsigned int) fc->data[y]->len &&
-            y >= HEADER_HEIGHT && y < (unsigned int) fc->len);
+    return (x >= linenum_width && y + 1 >= HEADER_HEIGHT &&
+            x < (unsigned int) fc->data[y]->len && y < (unsigned int) fc->len);
 }
 
 static int edit_file(char * filename) {
@@ -161,7 +161,7 @@ static int edit_file(char * filename) {
             pos.x += 1;
         }
 
-        move(pos.y, pos.x);
+        move(pos.y + 1, pos.x);
 
         
         if (input == 5) {
