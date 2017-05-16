@@ -15,26 +15,26 @@ build_flags = -std=c99
 # Define required library flags
 libflags = -lncurses -lm
 
-# all is the default make, runs a debug make
-all:
+# debug is the default make, runs a debug make
+debug:
 	$(cc) $(debug_flags) delta.c -o delta $(libflags)
 
-#build makes a production level build
+# build makes a production level build
 build:
-	@echo Delta\nBuilding production build...
-	rm delta.o delta
+	@echo Building production build of Delta...
+	rm delta
 	$(cc) $(build_flags) delta.c -o delta $(libflags)
 
 # clean removes all the object files and executable
 clean:
-	rm delta.o delta
+	rm delta
 
 # install installs the program on the system
 install:
-	@echo Installation not yet recomended
-	@echo Run `sudo make yes-i-really-want-to-install-this-editor-now` to install
+	@echo Installation not yet recommended
+	@echo Run \'sudo make yes-i-really-want-to-install-this-editor-now\' to install
 
-# Actually "installs" the program
+# Actually installs the program
 yes-i-really-want-to-install-this-editor-now:
 	@echo Installing Delta...
 	@echo Make sure you have run `make build`

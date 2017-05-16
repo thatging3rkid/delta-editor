@@ -103,7 +103,7 @@ static void fc_cleanup(FileContents * fc) {
 static void draw_header(char * filename) {
     attron(COLOR_PAIR(1));
 
-    printw("delta");
+    printw("Delta");
     for (int i = 0; i < (int) (max_pos.x - (8 + strlen(filename))); i += 1) {
         printw(" ");
     }
