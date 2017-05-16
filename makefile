@@ -1,6 +1,6 @@
 cc = gcc
 flags = -Wall -Wextra -pedantic -std=c99 -ggdb
-libflags = -lncurses
+libflags = -lncurses -lm
 
 all:
 	$(cc) $(flags) delta.c -o delta $(libflags)
