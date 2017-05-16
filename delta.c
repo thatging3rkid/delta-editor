@@ -137,6 +137,14 @@ static void update_max() {
     getmaxyx(stdscr, max_pos.y, max_pos.x);
 }
 
+static bool at_eol(int x, int y, FileContents * fc) {
+    return (y < fc->len && x == (fc->data[y]->len -2));
+}
+
+static bool at_bol(int x, int y, FileContents * fc) {
+    return (x == 0);
+}
+
 static int edit_file(char * filename) {
     FILE * fp = fopen(filename, "r+");
     if (fp == NULL) {
@@ -167,13 +175,13 @@ static int edit_file(char * filename) {
     while (true) {
         input = getch();
 
-        if (input == KEY_LEFT && at_eol(pos.x, pos.y, fc)) {
-            if (valid_move(0, pos.y - 1)) {
-                pos.x = 0;
+        if (input == KEY_LEFT && at_bol(pos.x, pos.y, fc)) {
+            if (valid_move(0, pos.y - 1, fc)) {
                 pos.y -= 1;
+                pos.x = (fc->data[pos.y]->len - 2);
             }
         } else if (input == KEY_RIGHT && at_eol(pos.x, pos.y, fc)) {
-            if (valid_move(0, pos.y + 1)) {
+            if (valid_move(0, pos.y + 1, fc)) {
                 pos.x = 0;
                 pos.y += 1;
             }
