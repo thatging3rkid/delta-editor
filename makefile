@@ -37,8 +37,7 @@ install:
 # Actually installs the program
 yes-i-really-want-to-install-this-editor-now:
 	@echo Installing Delta...
-	@echo Make sure you have run `make build`
-	sudo cp delta /usr/bin
+	sudo $(cc) $(build_flags) delta.c -o /usr/bin/delta $(libflags)	
 	sudo chown root:root /usr/bin/delta
 	sudo chmod 755 /usr/bin/delta
 	@echo Delta installed
