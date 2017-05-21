@@ -198,6 +198,11 @@ static int edit_file(char * filename) {
             }
         }
 
+        if (input == PAGEUP) {
+            
+        }
+        
+
         move(pos.y + HEADER_HEIGHT, pos.x + linenum_width);       
         
         // CTRL^e to exit
