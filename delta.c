@@ -13,6 +13,8 @@
 #include <ncurses.h>
 
 #define HEADER_HEIGHT 1
+#define PAGE_JUMP 60
+#define ARROW_JUMP 30
 
 typedef struct {
     int x;
@@ -96,6 +98,7 @@ static void fc_cleanup(FileContents * fc) {
         free(fc->data[i]);
         fc->data[i] = NULL;
     }
+    free(fc->data);
     free(fc);
     fc = NULL;
 }
@@ -115,7 +118,7 @@ static void draw_header(char * filename) {
 
 static void draw_file(FileContents * fc, int text_start) {    
     int text_end;
-    if (fc->len <= max_pos.y) {
+    if (fc->len <= (text_start + max_pos.y)) {
         text_end = fc->len - 1;
     } else {
         text_end = text_start + max_pos.y;
@@ -124,8 +127,9 @@ static void draw_file(FileContents * fc, int text_start) {
     linenum_width = log10(fc->len + 1) + 1;
     
     for (int i = text_start; i < text_end; i += 1) {
-        mvprintw(i + HEADER_HEIGHT, 0, "%*d%s", linenum_width, i + 1, fc->data[i]->data);
+        mvprintw((i - text_start) + HEADER_HEIGHT, 0, "%*d%s", linenum_width, i + 1, fc->data[i]->data);
     }
+    clrtobot();
 }
 
 static bool valid_move(int x, int y, FileContents * fc) {
@@ -169,6 +173,7 @@ static int edit_file(char * filename) {
     refresh();
     
     int input;
+    int start_line = 0;
 
     CursorPos pos = {.x = 0, .y = 0};
     move(pos.y + HEADER_HEIGHT, pos.x + linenum_width);
@@ -198,12 +203,25 @@ static int edit_file(char * filename) {
             }
         }
 
-        if (input == PAGEUP) {
-            
-        }
-        
+        if (input == KEY_NPAGE) {
+            if (fc->len > pos.y + start_line + PAGE_JUMP) {
+                pos.y += PAGE_JUMP;
+                start_line += PAGE_JUMP;
 
-        move(pos.y + HEADER_HEIGHT, pos.x + linenum_width);       
+                draw_file(fc, start_line);
+                refresh();
+            }
+        } else if (input == KEY_PPAGE) {
+            if (0 <= pos.y + start_line - PAGE_JUMP) {
+                pos.y -= PAGE_JUMP;
+                start_line -= PAGE_JUMP;
+
+                draw_file(fc, start_line);
+                refresh();
+            }
+        }        
+
+        move(pos.y + HEADER_HEIGHT - start_line, pos.x + linenum_width);       
         
         // CTRL^e to exit
         if (input == 5) {
