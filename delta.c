@@ -103,6 +103,32 @@ static void fc_cleanup(FileContents * fc) {
     fc = NULL;
 }
 
+static void fc_insert(FileContents * fc, int x, int y, char ins_char) {
+    if (y < 0 || y > fc->len || x < 0 || x > fc->data[y]->len - 2) {
+        return;
+    }
+
+    fc->data[y]->len += 1;
+    char * temp = realloc(fc->data[y]->data, fc->data[y]->len);
+    if (temp == NULL) {
+        fprintf(stderr, "delta: an error has occured");
+        endwin();
+        exit(EXIT_FAILURE);
+    }
+    fc->data[y]->data = temp;
+
+    char temp_c = fc->data[y]->data[x];
+    fc->data[y]->data[x] = ins_char;
+    for(int h = x + 1; h < fc->data[y]->len - 4; h += 1) {
+        fc->data[y]->data[h] = temp_c;
+        temp_c = fc->data[y]->data[h + 1];
+    }
+    fc->data[y]->data[fc->data[y]->len - 3] = temp_c;
+    fc->data[y]->data[fc->data[y]->len - 2] = '\n';
+    fc->data[y]->data[fc->data[y]->len - 1] = '\0';
+    
+}
+
 static void draw_header(char * filename) {
     attron(COLOR_PAIR(1));
 
@@ -134,7 +160,7 @@ static void draw_file(FileContents * fc, int text_start) {
 
 static bool valid_move(int x, int y, FileContents * fc) {
     return (x >= 0 && y + 1 >= HEADER_HEIGHT &&
-            x + 1 < fc->data[y]->len && y < fc->len);
+            y < fc->len && x + 1 < fc->data[y]->len);
 }
 
 static void update_max() {
@@ -208,7 +234,6 @@ static int edit_file(char * filename) {
                 pos.y += PAGE_JUMP;
                 start_line += PAGE_JUMP;
 
-                draw_file(fc, start_line);
                 refresh();
             }
         } else if (input == KEY_PPAGE) {
@@ -216,12 +241,18 @@ static int edit_file(char * filename) {
                 pos.y -= PAGE_JUMP;
                 start_line -= PAGE_JUMP;
 
-                draw_file(fc, start_line);
                 refresh();
             }
         }        
 
+        if (32 <= input && input <= 126) {
+            fc_insert(fc, pos.x, pos.y, (char) input);
+            pos.x += 1;
+        }
+        
+        draw_file(fc, start_line);
         move(pos.y + HEADER_HEIGHT - start_line, pos.x + linenum_width);       
+        refresh();
         
         // CTRL^e to exit
         if (input == 5) {
