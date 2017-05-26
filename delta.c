@@ -193,6 +193,8 @@ static void write_file(FileContents * fc, char * filename) {
     for (int i = 0; i < fc->len; i += 1) {
         fwrite(fc->data[i]->data, sizeof(char), fc->data[i]->len - 1, fp);
     }
+
+    fclose(fp);
 }
 
 static int edit_file(char * filename) {
