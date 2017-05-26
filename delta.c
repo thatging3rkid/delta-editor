@@ -107,7 +107,7 @@ static void fc_insert(FileContents * fc, int x, int y, char ins_char) {
     if (y < 0 || y > fc->len || x < 0 || x > fc->data[y]->len - 2) {
         return;
     }
-
+    
     fc->data[y]->len += 1;
     char * temp = realloc(fc->data[y]->data, fc->data[y]->len);
     if (temp == NULL) {
@@ -117,6 +117,13 @@ static void fc_insert(FileContents * fc, int x, int y, char ins_char) {
     }
     fc->data[y]->data = temp;
 
+    if (fc->data[y]->len == 3) {
+        fc->data[y]->data[0] = ins_char;
+        fc->data[y]->data[1] = '\n';
+        fc->data[y]->data[2] = '\0';
+        return;
+    }
+    
     char temp_c = fc->data[y]->data[x];
     fc->data[y]->data[x] = ins_char;
     for(int h = x + 1; h < fc->data[y]->len - 4; h += 1) {
@@ -175,10 +182,24 @@ static bool at_bol(int x, int y, FileContents * fc) {
     return (x == 0);
 }
 
+static void write_file(FileContents * fc, char * filename) {
+    FILE * fp = fopen(filename, "w");
+    if (fp == NULL) {
+        perror("delta");
+        endwin();
+        return;
+    }
+
+    for (int i = 0; i < fc->len; i += 1) {
+        fwrite(fc->data[i]->data, sizeof(char), fc->data[i]->len - 1, fp);
+    }
+}
+
 static int edit_file(char * filename) {
     FILE * fp = fopen(filename, "r+");
     if (fp == NULL) {
         perror("delta");
+        endwin();
         return EXIT_FAILURE;
     }
 
@@ -192,6 +213,7 @@ static int edit_file(char * filename) {
     init_pair(1, COLOR_BLACK, COLOR_WHITE);
     
     FileContents * fc = read_file(fp);
+    fclose(fp);
     update_max();
     draw_header(filename);
     draw_file(fc, 0);
@@ -254,10 +276,16 @@ static int edit_file(char * filename) {
         move(pos.y + HEADER_HEIGHT - start_line, pos.x + linenum_width);       
         refresh();
         
+        // CTRL^s to save
+        if (input == 19) {
+            write_file(fc, filename);
+        }
+
         // CTRL^e to exit
         if (input == 5) {
             break;
         }
+        
     }
 
     fc_cleanup(fc);
