@@ -198,7 +198,7 @@ static void write_file(FileContents * fc, char * filename) {
 }
 
 static int edit_file(char * filename) {
-    FILE * fp = fopen(filename, "r+");
+    FILE * fp = fopen(filename, "r");
     if (fp == NULL) {
         perror("delta");
         endwin();
@@ -224,7 +224,8 @@ static int edit_file(char * filename) {
     
     int input;
     int start_line = 0;
-
+    bool changed = false;
+    
     CursorPos pos = {.x = 0, .y = 0};
     move(pos.y + HEADER_HEIGHT, pos.x + linenum_width);
     while (true) {
@@ -272,6 +273,7 @@ static int edit_file(char * filename) {
         if (32 <= input && input <= 126) {
             fc_insert(fc, pos.x, pos.y, (char) input);
             pos.x += 1;
+            changed = true;
         }
         
         draw_file(fc, start_line);
@@ -280,7 +282,9 @@ static int edit_file(char * filename) {
         
         // CTRL^s to save
         if (input == 19) {
-            write_file(fc, filename);
+            if (changed) {   
+                write_file(fc, filename);
+            }
         }
 
         // CTRL^e to exit
