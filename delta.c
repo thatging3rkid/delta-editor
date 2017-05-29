@@ -111,7 +111,7 @@ static void fc_insert(FileContents * fc, int x, int y, char ins_char) {
     fc->data[y]->len += 1;
     char * temp = realloc(fc->data[y]->data, fc->data[y]->len);
     if (temp == NULL) {
-        fprintf(stderr, "delta: an error has occured");
+        fprintf(stderr, "delta: an error has occured\n");
         endwin();
         exit(EXIT_FAILURE);
     }
@@ -123,17 +123,41 @@ static void fc_insert(FileContents * fc, int x, int y, char ins_char) {
         fc->data[y]->data[2] = '\0';
         return;
     }
-    
-    char temp_c = fc->data[y]->data[x];
+
+    char * temp_s = malloc(sizeof(char) * (fc->data[y]->len - x));
+    strncpy(temp_s, fc->data[y]->data + x, fc->data[y]->len - 1 - x);
     fc->data[y]->data[x] = ins_char;
-    for(int h = x + 1; h < fc->data[y]->len - 4; h += 1) {
-        fc->data[y]->data[h] = temp_c;
-        temp_c = fc->data[y]->data[h + 1];
+    strncpy(fc->data[y]->data + x + 1, temp_s, fc->data[y]->len - 1 - x);
+    free(temp_s);
+}
+
+static void fc_remove(FileContents * fc, int x, int y) {
+    if (y < 0 || y > fc->len || x < 0 || x > fc->data[y]->len - 1) {
+        return;
     }
-    fc->data[y]->data[fc->data[y]->len - 3] = temp_c;
-    fc->data[y]->data[fc->data[y]->len - 2] = '\n';
-    fc->data[y]->data[fc->data[y]->len - 1] = '\0';
-    
+
+    if (x == fc->data[y]->len - 2) {
+        // Deleting the newline character
+        int new_len = fc->data[y]->len + fc->data[y + 1]->len - 2;
+
+        char * temp = realloc(fc->data[y]->data, new_len);
+        if (temp == NULL) {
+            fprintf(stderr, "delta: an error has occured\n");
+            endwin();
+            exit(EXIT_FAILURE);
+        }
+        fc->data[y]->data = temp;
+        strncpy(fc->data[y]->data + fc->data[y]->len - 2, fc->data[y + 1]->data, fc->data[y + 1]->len);
+
+        free(fc->data[y + 1]->data);
+        free(fc->data[y + 1]);
+
+        fc->len -= 1;
+        
+        for (int i = y + 1; i < fc->len - 1; i += 1) {
+            fc->data[i] = fc->data[y + 1];
+        }
+    }
 }
 
 static void draw_header(char * filename) {
@@ -274,6 +298,16 @@ static int edit_file(char * filename) {
             fc_insert(fc, pos.x, pos.y, (char) input);
             pos.x += 1;
             changed = true;
+        }
+
+        if (input == KEY_BACKSPACE) {
+            if (pos.x > 1) {
+                pos.x -= 1;
+                fc_remove(fc, pos.x, pos.y);
+            }
+        }
+        if (input == KEY_DC) {
+            fc_remove(fc, pos.x, pos.y);
         }
         
         draw_file(fc, start_line);
