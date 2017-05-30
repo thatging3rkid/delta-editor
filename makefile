@@ -34,6 +34,11 @@ install:
 	@echo Installation not yet recommended
 	@echo Run \'sudo make yes-i-really-want-to-install-this-editor-now\' to install
 
+# install-dependencies installs ncurses so that Delta can be compiled
+install-dependencies:
+	@echo Installing dependencies for delta using apt-get...
+	sudo apt-get install libncurses-dev
+
 # Actually installs the program
 yes-i-really-want-to-install-this-editor-now:
 	@echo Installing Delta...
