@@ -133,6 +133,7 @@ static void fc_insert(FileContents * fc, int x, int y, char ins_char) {
 
 static void fc_remove(FileContents * fc, int x, int y) {
     if (y < 0 || y > fc->len || x < 0 || x > fc->data[y]->len - 1) {
+        beep(); // for debugging right now, might become a feature
         return;
     }
 
@@ -157,6 +158,22 @@ static void fc_remove(FileContents * fc, int x, int y) {
         for (int i = y + 1; i < fc->len - 1; i += 1) {
             fc->data[i] = fc->data[y + 1];
         }
+    } else {
+        char * temp_s = malloc(sizeof(char) * fc->data[y]->len);
+        strncpy(temp_s, fc->data[y]->data, fc->data[y]->len);
+
+        fc->data[y]->len -= 1;
+        char * temp = realloc(fc->data[y]->data, fc->data[y]->len);
+        if (temp == NULL) {
+            fprintf(stderr, "delta: an error has occured\n");
+            endwin();
+            exit(EXIT_FAILURE);
+        }
+        fc->data[y]->data = temp;
+        x += 1;
+        strncpy(fc->data[y]->data, temp_s, x);
+        strncpy(fc->data[y]->data + x - 1, temp_s + x, fc->data[y]->len - x);
+        free(temp_s);
     }
 }
 
@@ -182,11 +199,11 @@ static void draw_file(FileContents * fc, int text_start) {
     }
 
     linenum_width = log10(fc->len + 1) + 1;
-    
+
+    clrtobot();
     for (int i = text_start; i < text_end; i += 1) {
         mvprintw((i - text_start) + HEADER_HEIGHT, 0, "%*d%s", linenum_width, i + 1, fc->data[i]->data);
     }
-    clrtobot();
 }
 
 static bool valid_move(int x, int y, FileContents * fc) {
@@ -302,11 +319,13 @@ static int edit_file(char * filename) {
 
         if (input == KEY_BACKSPACE) {
             if (pos.x > 1) {
+                changed = true;
                 pos.x -= 1;
                 fc_remove(fc, pos.x, pos.y);
             }
         }
         if (input == KEY_DC) {
+            changed = true;
             fc_remove(fc, pos.x, pos.y);
         }
         
