@@ -12,9 +12,10 @@
 #include <stdbool.h>
 #include <ncurses.h>
 
-#define HEADER_HEIGHT 1
+#define FOOTER_HEIGHT 1
 #define PAGE_JUMP 60
 #define ARROW_JUMP 30
+#define STATUS_LEN 40
 
 typedef struct {
     int x;
@@ -34,6 +35,7 @@ typedef struct {
 static unsigned char linenum_width = 1;
 static CursorPos max_pos = {.x = 1, .y = 1};
 
+static char status[STATUS_LEN];
 static FileContents * read_file(FILE * fp) {
     fseek(fp, 0, SEEK_SET);
     FileContents * output = malloc(sizeof(FileContents));
@@ -177,38 +179,41 @@ static void fc_remove(FileContents * fc, int x, int y) {
     }
 }
 
-static void draw_header(char * filename) {
+static void fc_newline(FileContents * fc, int x, int y) {
+    beep();
+    
+}
+
+static void draw_footer(char * filename, int x, int y, bool changed) {
     attron(COLOR_PAIR(1));
 
-    printw("Delta");
-    for (int i = 0; i < (int) (max_pos.x - (8 + strlen(filename))); i += 1) {
-        printw(" ");
-    }
-    printw("e: %s", filename);
-    printw("\n");
+    move(max_pos.y - 1, 0);
+    printw("delta rocks");
+    
+    
     
     attroff(COLOR_PAIR(1));
 }
 
 static void draw_file(FileContents * fc, int text_start) {    
     int text_end;
-    if (fc->len <= (text_start + max_pos.y)) {
+    if (fc->len <= (text_start + max_pos.y - FOOTER_HEIGHT)) {
         text_end = fc->len - 1;
     } else {
-        text_end = text_start + max_pos.y;
+        text_end = text_start + max_pos.y - FOOTER_HEIGHT;
     }
 
     linenum_width = log10(fc->len + 1) + 1;
 
     clrtobot();
     for (int i = text_start; i < text_end; i += 1) {
-        mvprintw((i - text_start) + HEADER_HEIGHT, 0, "%*d%s", linenum_width, i + 1, fc->data[i]->data);
+        mvprintw(i - text_start, 0, "%*d%s", linenum_width, i + 1, fc->data[i]->data);
     }
 }
 
 static bool valid_move(int x, int y, FileContents * fc) {
-    return (x >= 0 && y + 1 >= HEADER_HEIGHT &&
-            y < fc->len && x + 1 < fc->data[y]->len);
+    return (x >= 0 && y >= 0 &&
+            y < fc->len - FOOTER_HEIGHT && x + 1 < fc->data[y]->len);
 }
 
 static void update_max() {
@@ -258,7 +263,6 @@ static int edit_file(char * filename) {
     FileContents * fc = read_file(fp);
     fclose(fp);
     update_max();
-    draw_header(filename);
     draw_file(fc, 0);
     move(1, 1);
     refresh();
@@ -266,9 +270,12 @@ static int edit_file(char * filename) {
     int input;
     int start_line = 0;
     bool changed = false;
+    int tab_does = 4; // will be read from a config file in later revisions
     
     CursorPos pos = {.x = 0, .y = 0};
-    move(pos.y + HEADER_HEIGHT, pos.x + linenum_width);
+    draw_footer(filename, pos.x, pos.y, changed);
+    move(pos.y, pos.x + linenum_width);
+    
     while (true) {
         input = getch();
 
@@ -318,19 +325,39 @@ static int edit_file(char * filename) {
         }
 
         if (input == KEY_BACKSPACE) {
-            if (pos.x > 1) {
+            if (pos.x >= 1) {
                 changed = true;
                 pos.x -= 1;
                 fc_remove(fc, pos.x, pos.y);
             }
         }
+        
         if (input == KEY_DC) {
             changed = true;
             fc_remove(fc, pos.x, pos.y);
         }
+
+        if (input == '\n') {
+            changed = true;
+            fc_newline(fc, pos.x, pos.y);
+        }
+
+        if (input == '\t') {
+            if (tab_does == -1) {
+                fc_insert(fc, pos.x, pos.y, '\t');
+            } else {
+                for (int i = 0; i < tab_does; i += 1) {
+                    fc_insert(fc, pos.x, pos.y, ' ');
+                    pos.x += 1;
+                }
+            }
+        }
+        
         
         draw_file(fc, start_line);
-        move(pos.y + HEADER_HEIGHT - start_line, pos.x + linenum_width);       
+        draw_footer(filename, pos.x, pos.y, changed);
+        move(pos.y - start_line, pos.x + linenum_width);       
+        update_max();
         refresh();
         
         // CTRL^s to save
