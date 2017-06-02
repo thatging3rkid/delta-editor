@@ -6,6 +6,7 @@
  * @author Connor Henley, @thatging3rkid
  */
 #include <math.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,7 +16,7 @@
 #define FOOTER_HEIGHT 1
 #define PAGE_JUMP 60
 #define ARROW_JUMP 30
-#define STATUS_LEN 40
+#define STATUS_LEN 46
 
 typedef struct {
     int x;
@@ -34,8 +35,9 @@ typedef struct {
 
 static unsigned char linenum_width = 1;
 static CursorPos max_pos = {.x = 1, .y = 1};
-
 static char status[STATUS_LEN];
+static bool error_status = false;
+
 static FileContents * read_file(FILE * fp) {
     fseek(fp, 0, SEEK_SET);
     FileContents * output = malloc(sizeof(FileContents));
@@ -184,15 +186,121 @@ static void fc_newline(FileContents * fc, int x, int y) {
     
 }
 
+static void clear_status() {
+    for (int i = 0; i < STATUS_LEN; i += 1) {
+        status[i] = '\0';
+    }
+    error_status = false;
+}
+
+static void set_status(char * new_status) {
+    error_status = false;
+    strncpy(status, new_status, STATUS_LEN);
+}
+
+static void set_status_err(char * new_status) {
+    set_status(new_status);
+    error_status = true;
+}
+
+static void fileset_status(int errsv) {
+    switch(errsv) {
+    case ENOENT:
+        set_status_err("No such file or directory");
+        break;
+    case EINTR:
+        set_status_err("Interrupted system call");
+        break;
+    case EIO:
+        set_status_err("I/O error");
+        break;
+    case EAGAIN:
+        set_status_err("Try again"); // I guess this is an error?
+        break;
+    case EACCES:
+        set_status_err("Permission denied");
+        break;
+    case EBUSY:
+        set_status_err("Resource busy");
+        break;
+    case EISDIR:
+        set_status_err("Is a directory");
+        break;
+    case ETXTBSY:
+        set_status_err("Text file busy");
+        break;
+    case EFBIG:
+        set_status_err("File too large");
+        break;
+    case ENOSPC:
+        set_status_err("No space left on device");
+        break;
+    case EROFS:
+        set_status_err("Read-only file system");
+        break;
+    default:
+        set_status_err(sprintf("Error %i, consult internet", errno));
+        break;
+    }
+}
+
 static void draw_footer(char * filename, int x, int y, bool changed) {
-    attron(COLOR_PAIR(1));
+    attron(COLOR_PAIR(1) | A_BLINK);
 
     move(max_pos.y - 1, 0);
-    printw("delta rocks");
+    if (changed) {
+        printw("*");
+    } else {
+        printw(" ");
+    }
+    printw("%s:%*d:%d        ", filename, linenum_width, y + 1, x + 1);
+    move(max_pos.y - 1, linenum_width + 7 + strlen(filename));
+    printw("Delta ");
     
+    attroff(COLOR_PAIR(1) | A_BLINK);
+
+    if (error_status) {
+        // Print message a different color
+        attron(COLOR_PAIR(3) | A_BLINK);
+        
+        printw(" ");
+        for (int i = 0; i < STATUS_LEN; i += 1) {
+            char temp = status[i];
+            if (temp == '\0') {
+                printw("%c", ' ');
+            } else {
+                printw("%c", temp);
+            }
+        }
+        clear_status();
+        attroff(COLOR_PAIR(3) | A_BLINK);
+
+    } else {
+        // Print message normally
+        attron(COLOR_PAIR(2) | A_BLINK);
+        
+        printw(" ");
+        for (int i = 0; i < STATUS_LEN; i += 1) {
+            char temp = status[i];
+            if (temp == '\0') {
+                printw("%c", ' ');
+            } else {
+                printw("%c", temp);
+            }
+        }
+        clear_status();
+        attroff(COLOR_PAIR(2) | A_BLINK);
+    }
     
+    int y_pos, x_pos = 0;
+    getyx(stdscr, y_pos, x_pos);
+    attron(COLOR_PAIR(1) | A_BLINK);
     
-    attroff(COLOR_PAIR(1));
+    for (int j = x_pos; j < max_pos.x; j += 1) {
+        printw(" ");
+    }
+    
+    attroff(COLOR_PAIR(1) | A_BLINK);
 }
 
 static void draw_file(FileContents * fc, int text_start) {    
@@ -209,6 +317,7 @@ static void draw_file(FileContents * fc, int text_start) {
     for (int i = text_start; i < text_end; i += 1) {
         mvprintw(i - text_start, 0, "%*d%s", linenum_width, i + 1, fc->data[i]->data);
     }
+
 }
 
 static bool valid_move(int x, int y, FileContents * fc) {
@@ -231,8 +340,7 @@ static bool at_bol(int x, int y, FileContents * fc) {
 static void write_file(FileContents * fc, char * filename) {
     FILE * fp = fopen(filename, "w");
     if (fp == NULL) {
-        perror("delta");
-        endwin();
+        fileset_status(errno);
         return;
     }
 
@@ -241,6 +349,7 @@ static void write_file(FileContents * fc, char * filename) {
     }
 
     fclose(fp);
+    set_status("Successfully wrote file");
 }
 
 static int edit_file(char * filename) {
@@ -258,7 +367,9 @@ static int edit_file(char * filename) {
 
     // Make the color pairs
     start_color();
-    init_pair(1, COLOR_BLACK, COLOR_WHITE);
+    init_pair(1, COLOR_BLACK, COLOR_WHITE); // Header color
+    init_pair(2, COLOR_BLACK, COLOR_CYAN);  // Status bar color
+    init_pair(3, COLOR_RED, COLOR_CYAN);    // Status bar error color
     
     FileContents * fc = read_file(fp);
     fclose(fp);
@@ -345,6 +456,7 @@ static int edit_file(char * filename) {
         if (input == '\t') {
             if (tab_does == -1) {
                 fc_insert(fc, pos.x, pos.y, '\t');
+                pos.x += 6;
             } else {
                 for (int i = 0; i < tab_does; i += 1) {
                     fc_insert(fc, pos.x, pos.y, ' ');
@@ -353,17 +465,11 @@ static int edit_file(char * filename) {
             }
         }
         
-        
-        draw_file(fc, start_line);
-        draw_footer(filename, pos.x, pos.y, changed);
-        move(pos.y - start_line, pos.x + linenum_width);       
-        update_max();
-        refresh();
-        
         // CTRL^s to save
         if (input == 19) {
             if (changed) {   
                 write_file(fc, filename);
+                changed = false;
             }
         }
 
@@ -372,6 +478,11 @@ static int edit_file(char * filename) {
             break;
         }
         
+        draw_file(fc, start_line);
+        draw_footer(filename, pos.x, pos.y, changed);
+        move(pos.y - start_line, pos.x + linenum_width);       
+        update_max();
+        refresh();
     }
 
     fc_cleanup(fc);
@@ -382,16 +493,14 @@ static int edit_file(char * filename) {
 
 int main(int argc, char * argv[]) {
     if (argc == 1) {
-        fprintf(stderr, "Usage: delta file\n");
-        return EXIT_FAILURE;
-    } else {
-        for (int i = 1; i < argc; i += 1) {
-            int file_status;
-            if ((file_status = edit_file(argv[i])) != EXIT_SUCCESS) {
-                return file_status;
-            }
-        }
-        return EXIT_SUCCESS;
+        return EXIT_FAILURE; // Replace with some sort of tutorial/splash page
     }
     
+    for (int i = 1; i < argc; i += 1) {
+        int file_status;
+        if ((file_status = edit_file(argv[i])) != EXIT_SUCCESS) {
+            return file_status;
+        }
+    }
+    return EXIT_SUCCESS;    
 }
