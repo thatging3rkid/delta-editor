@@ -160,7 +160,7 @@ static void fc_remove(FileContents * fc, int x, int y) {
         fc->len -= 1;
         
         for (int i = y + 1; i < fc->len - 1; i += 1) {
-            fc->data[i] = fc->data[y + 1];
+            fc->data[i] = fc->data[i + 1];
         }
     } else {
         char * temp_s = malloc(sizeof(char) * fc->data[y]->len);
@@ -350,7 +350,7 @@ static void write_file(FileContents * fc, char * filename) {
 
     fclose(fp);
     set_status("Successfully wrote file");
-    changed = false;
+    //    changed = false;
 }
 
 static int edit_file(char * filename) {
