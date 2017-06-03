@@ -350,6 +350,7 @@ static void write_file(FileContents * fc, char * filename) {
 
     fclose(fp);
     set_status("Successfully wrote file");
+    changed = false;
 }
 
 static int edit_file(char * filename) {
@@ -469,7 +470,6 @@ static int edit_file(char * filename) {
         if (input == 19) {
             if (changed) {   
                 write_file(fc, filename);
-                changed = false;
             }
         }
 
