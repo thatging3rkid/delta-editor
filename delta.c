@@ -37,23 +37,37 @@ static unsigned char linenum_width = 1;
 static CursorPos max_pos = {.x = 1, .y = 1};
 static char status[STATUS_LEN];
 static bool error_status = false;
+static bool changed = false;
 
+/**
+ * Reads a file from a file pointer and makes the FileContents for it
+ *
+ * @param fp file pointer to read from
+ * @return a FileContents pointer
+ *
+ * @note the returned object must be freed using fc_cleanup
+ */
 static FileContents * read_file(FILE * fp) {
+    // Initalize stuff and go to the beginning of the file
     fseek(fp, 0, SEEK_SET);
     FileContents * output = malloc(sizeof(FileContents));
     output->data = NULL;
     output->len = 0;
-    
+
+    // Loop through the file until an EOF is found
     bool eof = false;
     while (true) {
+        // For every line, make a FileLine
         FileLine * entry = malloc(sizeof(FileLine));
         entry->len = 1;
         entry->data = malloc(sizeof(char));
 
+        // Read in every character, one-by-one
         char input;
         while (true) {
             input = fgetc(fp);
 
+            // Check for EOF and newline
             if (input == EOF) {
                 eof = true;
                 break;
@@ -75,6 +89,7 @@ static FileContents * read_file(FILE * fp) {
             }
         }
 
+        // Make space for a new FileLine in the FileContents
         if (output->len == 0) {
             output->data = malloc(sizeof(FileLine *));
         }
@@ -89,29 +104,50 @@ static FileContents * read_file(FILE * fp) {
             output->data[output->len - 1] = entry;
         }
 
+        // Handle the EOF
         if (eof) {
             break;
         }
     }
+
+    // Return the complete FileContents
     return output;
 }
 
+/**
+ * Clean up a FileContents instance
+ *
+ * @param fc a pointer to the FileContents instance (given by read_file())
+ */
 static void fc_cleanup(FileContents * fc) {
+    // Free all the FileLines and their data
     for (int i = 0; i < fc->len; i += 1) {
         free(fc->data[i]->data);
         free(fc->data[i]);
         fc->data[i] = NULL;
     }
+
+    // Free the FileContents instance
     free(fc->data);
     free(fc);
     fc = NULL;
 }
 
+/**
+ * Insert a character at a certain position
+ *
+ * @param fc a pointer to the FileContents instance
+ * @param x the x coordinate of the position (aka column)
+ * @param y the y coordinate of the position (aka row)
+ * @param ins_char the character to insert
+ */
 static void fc_insert(FileContents * fc, int x, int y, char ins_char) {
+    // Ensure the position is in-bounds
     if (y < 0 || y > fc->len || x < 0 || x > fc->data[y]->len - 2) {
         return;
     }
-    
+
+    // Make the FileLine longer
     fc->data[y]->len += 1;
     char * temp = realloc(fc->data[y]->data, fc->data[y]->len);
     if (temp == NULL) {
@@ -121,6 +157,7 @@ static void fc_insert(FileContents * fc, int x, int y, char ins_char) {
     }
     fc->data[y]->data = temp;
 
+    // Special case for an empty line
     if (fc->data[y]->len == 3) {
         fc->data[y]->data[0] = ins_char;
         fc->data[y]->data[1] = '\n';
@@ -128,10 +165,18 @@ static void fc_insert(FileContents * fc, int x, int y, char ins_char) {
         return;
     }
 
+    // Start by copying all data after the insertion point into a temporary spot
     char * temp_s = malloc(sizeof(char) * (fc->data[y]->len - x));
     strncpy(temp_s, fc->data[y]->data + x, fc->data[y]->len - 1 - x);
+
+    // Then insert the character
     fc->data[y]->data[x] = ins_char;
+
+    // Finally, copy the data back into the array, after the insertion point
+    // While this method may not be the fastest, it works.
     strncpy(fc->data[y]->data + x + 1, temp_s, fc->data[y]->len - 1 - x);
+
+    // Cleanup memory used by the temporary storage
     free(temp_s);
 }
 
@@ -238,8 +283,13 @@ static void fileset_status(int errsv) {
     case EROFS:
         set_status_err("Read-only file system");
         break;
-    default:
-        set_status_err(sprintf("Error %i, consult internet", errno));
+    default: ;
+        char temp_status[STATUS_LEN];
+        for (int i = 0; i < STATUS_LEN; i += 1) {
+            temp_status[i] = '\0';
+        }
+        sprintf(temp_status, "Error %i, consult internet", errno);
+        set_status_err(temp_status);
         break;
     }
 }
@@ -330,7 +380,7 @@ static void update_max() {
 }
 
 static bool at_eol(int x, int y, FileContents * fc) {
-    return (y < fc->len && x == (fc->data[y]->len -2));
+    return (y < fc->len && x == (fc->data[y]->len - 2));
 }
 
 static bool at_bol(int x, int y, FileContents * fc) {
@@ -350,7 +400,7 @@ static void write_file(FileContents * fc, char * filename) {
 
     fclose(fp);
     set_status("Successfully wrote file");
-    //    changed = false;
+    changed = false;
 }
 
 static int edit_file(char * filename) {
@@ -381,7 +431,7 @@ static int edit_file(char * filename) {
     
     int input;
     int start_line = 0;
-    bool changed = false;
+    changed = false;
     int tab_does = 4; // will be read from a config file in later revisions
     
     CursorPos pos = {.x = 0, .y = 0};
