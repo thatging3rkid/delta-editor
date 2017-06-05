@@ -180,16 +180,25 @@ static void fc_insert(FileContents * fc, int x, int y, char ins_char) {
     free(temp_s);
 }
 
+/**
+ * Remove a character at a certain position
+ *
+ * @param fc a pointer to the FileContents instance
+ * @param x the x coordinate of the position (aka column)
+ * @param y the y coordinate of the position (aka row)
+ */
 static void fc_remove(FileContents * fc, int x, int y) {
     if (y < 0 || y > fc->len || x < 0 || x > fc->data[y]->len - 1) {
         beep(); // for debugging right now, might become a feature
         return;
     }
 
+    // See if this is on a newline character
     if (x == fc->data[y]->len - 2) {
-        // Deleting the newline character
+        // Calculate the new length of the line
         int new_len = fc->data[y]->len + fc->data[y + 1]->len - 2;
 
+        // Make the storage for the data bigger
         char * temp = realloc(fc->data[y]->data, new_len);
         if (temp == NULL) {
             fprintf(stderr, "delta: an error has occured\n");
@@ -197,20 +206,27 @@ static void fc_remove(FileContents * fc, int x, int y) {
             exit(EXIT_FAILURE);
         }
         fc->data[y]->data = temp;
+
+        // Move the data into the old string
         strncpy(fc->data[y]->data + fc->data[y]->len - 2, fc->data[y + 1]->data, fc->data[y + 1]->len);
 
+        // Free references to the old line
         free(fc->data[y + 1]->data);
         free(fc->data[y + 1]);
 
+        // Decrease the length
         fc->len -= 1;
-        
+
+        // Move everything up a line
         for (int i = y + 1; i < fc->len - 1; i += 1) {
             fc->data[i] = fc->data[i + 1];
         }
     } else {
+        // Make temorary space for the contents of the line
         char * temp_s = malloc(sizeof(char) * fc->data[y]->len);
         strncpy(temp_s, fc->data[y]->data, fc->data[y]->len);
 
+        // Move the space for the string and make it one shorter
         fc->data[y]->len -= 1;
         char * temp = realloc(fc->data[y]->data, fc->data[y]->len);
         if (temp == NULL) {
@@ -219,35 +235,68 @@ static void fc_remove(FileContents * fc, int x, int y) {
             exit(EXIT_FAILURE);
         }
         fc->data[y]->data = temp;
+
+        // Move the data back into the string, overwriting the old character
         x += 1;
         strncpy(fc->data[y]->data, temp_s, x);
         strncpy(fc->data[y]->data + x - 1, temp_s + x, fc->data[y]->len - x);
+
+        // Free the temporary resources
         free(temp_s);
     }
 }
 
+/**
+ * Make a new line
+ *
+ * @param fc a pointer to the FileContents instance
+ * @param x the x coordinate of the position (aka column)
+ * @param y the y coordinate of the position (aka row)
+ */
 static void fc_newline(FileContents * fc, int x, int y) {
-    beep();
-    
+    beep(); // temp
 }
 
+/**
+ * Empty the status bar
+ */
 static void clear_status() {
+    // See if the status bar is already empty
+    if (status[0] == '\0') {
+        return;
+    }
+    
     for (int i = 0; i < STATUS_LEN; i += 1) {
         status[i] = '\0';
     }
     error_status = false;
 }
 
+/**
+ * Set new data into the status bar
+ *
+ * @param new_status the text to write into the status bar
+ */
 static void set_status(char * new_status) {
     error_status = false;
     strncpy(status, new_status, STATUS_LEN);
 }
 
+/**
+ * Set new data into the status bar and set the error flag
+ *
+ * @param new_status the text to write into the status bar
+ */
 static void set_status_err(char * new_status) {
     set_status(new_status);
     error_status = true;
 }
 
+/**
+ * Processes the errno value and sets the status bar to the correct text
+ *
+ * @param errsv the value of errno
+ */
 static void fileset_status(int errsv) {
     switch(errsv) {
     case ENOENT:
@@ -294,25 +343,42 @@ static void fileset_status(int errsv) {
     }
 }
 
+/**
+ * Draws the bar at the bottom of the editor
+ *
+ * @param filename the name of the file (not the location)
+ * @param x the current x coordinate (aka column)
+ * @param y the current y coordinate (aka row)
+ * @param changed if the file has been changed
+ */
 static void draw_footer(char * filename, int x, int y, bool changed) {
+    // Turn on the black text with white background, make it bright
     attron(COLOR_PAIR(1) | A_BLINK);
 
+    // Move the cursor to the correct position and write if the file has been changed
     move(max_pos.y - 1, 0);
     if (changed) {
         printw("*");
     } else {
         printw(" ");
     }
+
+    // Next, write the filename, row, and column
     printw("%s:%*d:%d        ", filename, linenum_width, y + 1, x + 1);
+
+    // Move back a little to ensure the bar is always written
     move(max_pos.y - 1, linenum_width + 7 + strlen(filename));
     printw("Delta ");
-    
+
+    // Turn off the black text with white background
     attroff(COLOR_PAIR(1) | A_BLINK);
 
+    // Print the status bar
     if (error_status) {
         // Print message a different color
         attron(COLOR_PAIR(3) | A_BLINK);
-        
+
+        // Print the contents of the status string
         printw(" ");
         for (int i = 0; i < STATUS_LEN; i += 1) {
             char temp = status[i];
@@ -328,7 +394,8 @@ static void draw_footer(char * filename, int x, int y, bool changed) {
     } else {
         // Print message normally
         attron(COLOR_PAIR(2) | A_BLINK);
-        
+
+        // Print the contents of the status string
         printw(" ");
         for (int i = 0; i < STATUS_LEN; i += 1) {
             char temp = status[i];
@@ -341,7 +408,8 @@ static void draw_footer(char * filename, int x, int y, bool changed) {
         clear_status();
         attroff(COLOR_PAIR(2) | A_BLINK);
     }
-    
+
+    // Fill the rest of the screen width
     int y_pos, x_pos = 0;
     getyx(stdscr, y_pos, x_pos);
     attron(COLOR_PAIR(1) | A_BLINK);
@@ -353,7 +421,14 @@ static void draw_footer(char * filename, int x, int y, bool changed) {
     attroff(COLOR_PAIR(1) | A_BLINK);
 }
 
+/**
+ * Draw the text of the file onto the screen
+ *
+ * @param fc a pointer to the FileContents instance
+ * @param text_start the line to start printing text from
+ */
 static void draw_file(FileContents * fc, int text_start) {    
+    // Calculate how much needs to be printed
     int text_end;
     if (fc->len <= (text_start + max_pos.y - FOOTER_HEIGHT)) {
         text_end = fc->len - 1;
@@ -361,24 +436,44 @@ static void draw_file(FileContents * fc, int text_start) {
         text_end = text_start + max_pos.y - FOOTER_HEIGHT;
     }
 
+    // Update the width of the line numbers
     linenum_width = log10(fc->len + 1) + 1;
 
-    clrtobot();
+    // Print data and line number
     for (int i = text_start; i < text_end; i += 1) {
         mvprintw(i - text_start, 0, "%*d%s", linenum_width, i + 1, fc->data[i]->data);
     }
-
+    
+    clrtobot();
 }
 
+/**
+ * Ensure this is a valid position
+ *
+ * @param x the x coordinate to text (aka column)
+ * @param y the y coordinate to test (aka row)
+ * @param fc a pointer to the FileContents instance
+ */
 static bool valid_move(int x, int y, FileContents * fc) {
     return (x >= 0 && y >= 0 &&
             y < fc->len - FOOTER_HEIGHT && x + 1 < fc->data[y]->len);
 }
 
+/**
+ * Update the screen size
+ */
 static void update_max() {
     getmaxyx(stdscr, max_pos.y, max_pos.x);
 }
 
+
+/**
+ * Test if the current position is at the end of the line
+ *
+ * @param x the x coordinate to test (aka column)
+ * @param y the y coordinate to test (aka row)
+ * @param fc a pointer to the FileContents instance
+ */
 static bool at_eol(int x, int y, FileContents * fc) {
     return (y < fc->len && x == (fc->data[y]->len - 2));
 }
@@ -403,8 +498,8 @@ static void write_file(FileContents * fc, char * filename) {
     changed = false;
 }
 
-static int edit_file(char * filename) {
-    FILE * fp = fopen(filename, "r");
+static int edit_file(char * filepos) {
+    FILE * fp = fopen(filepos, "r");
     if (fp == NULL) {
         perror("delta");
         endwin();
@@ -421,26 +516,38 @@ static int edit_file(char * filename) {
     init_pair(1, COLOR_BLACK, COLOR_WHITE); // Header color
     init_pair(2, COLOR_BLACK, COLOR_CYAN);  // Status bar color
     init_pair(3, COLOR_RED, COLOR_CYAN);    // Status bar error color
-    
+
+    // Initalize more things
     FileContents * fc = read_file(fp);
     fclose(fp);
     update_max();
-    draw_file(fc, 0);
-    move(1, 1);
-    refresh();
     
     int input;
     int start_line = 0;
     changed = false;
     int tab_does = 4; // will be read from a config file in later revisions
-    
+
+    // Remove the path from the file location
+    char * filename = NULL;
+    if ((filename = strchr(filepos, '/')) != NULL) {
+        filename += 1;
+    } else {
+        filename = filepos;
+    }
+
+    // Even more initalization
     CursorPos pos = {.x = 0, .y = 0};
+    draw_file(fc, 0);
     draw_footer(filename, pos.x, pos.y, changed);
     move(pos.y, pos.x + linenum_width);
+    refresh();
     
+    // The editor loop. Reads input, processes, writes the result and does it again.
     while (true) {
+        // Read input from the keyboard
         input = getch();
 
+        // Check for movement keys (left, right, etc.)
         if (input == KEY_LEFT && at_bol(pos.x, pos.y, fc)) {
             if (valid_move(0, pos.y - 1, fc)) {
                 pos.y -= 1;
@@ -464,6 +571,7 @@ static int edit_file(char * filename) {
             }
         }
 
+        // Process a page up or page down
         if (input == KEY_NPAGE) {
             if (fc->len > pos.y + start_line + PAGE_JUMP) {
                 pos.y += PAGE_JUMP;
@@ -480,12 +588,14 @@ static int edit_file(char * filename) {
             }
         }        
 
+        // Process a character input
         if (32 <= input && input <= 126) {
             fc_insert(fc, pos.x, pos.y, (char) input);
             pos.x += 1;
             changed = true;
         }
 
+        // Process a backspace
         if (input == KEY_BACKSPACE) {
             if (pos.x >= 1) {
                 changed = true;
@@ -493,17 +603,20 @@ static int edit_file(char * filename) {
                 fc_remove(fc, pos.x, pos.y);
             }
         }
-        
+
+        // Process a delete key
         if (input == KEY_DC) {
             changed = true;
             fc_remove(fc, pos.x, pos.y);
         }
 
+        // Process an enter key
         if (input == '\n') {
             changed = true;
             fc_newline(fc, pos.x, pos.y);
         }
 
+        // Process a tab
         if (input == '\t') {
             if (tab_does == -1) {
                 fc_insert(fc, pos.x, pos.y, '\t');
@@ -516,18 +629,19 @@ static int edit_file(char * filename) {
             }
         }
         
-        // CTRL^s to save
+        // Process a ctrl+s (save)
         if (input == 19) {
             if (changed) {   
                 write_file(fc, filename);
             }
         }
 
-        // CTRL^e to exit
+        // Process a ctrl+e (exit)
         if (input == 5) {
             break;
         }
-        
+
+        // Draw the updated file to the screen
         draw_file(fc, start_line);
         draw_footer(filename, pos.x, pos.y, changed);
         move(pos.y - start_line, pos.x + linenum_width);       
@@ -541,6 +655,12 @@ static int edit_file(char * filename) {
     
 }
 
+/**
+ * The main function
+ *
+ * @param argc the number of command-line arguments
+ * @param argv a pointer to the command-line arguments
+ */
 int main(int argc, char * argv[]) {
     if (argc == 1) {
         return EXIT_FAILURE; // Replace with some sort of tutorial/splash page
