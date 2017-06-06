@@ -478,6 +478,11 @@ static bool at_eol(int x, int y, FileContents * fc) {
     return (y < fc->len && x == (fc->data[y]->len - 2));
 }
 
+/**
+ * Test if the current position is at the beginning of the line
+ *
+ * @param x the x coordinate to test (aka column)
+ */
 static bool at_bol(int x, int y, FileContents * fc) {
     return (x == 0);
 }
