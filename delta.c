@@ -39,6 +39,12 @@ static char status[STATUS_LEN];
 static bool error_status = false;
 static bool changed = false;
 
+/*
+ * Function prototypes
+ */
+static bool at_eol(int x, int y, FileContents * fc);
+
+
 /**
  * Reads a file from a file pointer and makes the FileContents for it
  *
@@ -254,7 +260,11 @@ static void fc_remove(FileContents * fc, int x, int y) {
  * @param y the y coordinate of the position (aka row)
  */
 static void fc_newline(FileContents * fc, int x, int y) {
-    beep(); // temp
+    if (at_eol(x, y, fc)) {
+        FileLine ** temp_f = malloc(sizeof(FileLine *) * fc->len - y);
+        memcpy(temp_f, fc->data + y, fc->len - y);
+        
+    }
 }
 
 /**
@@ -657,7 +667,6 @@ static int edit_file(char * filepos) {
     fc_cleanup(fc);
     endwin();
     return EXIT_SUCCESS;
-    
 }
 
 /**
