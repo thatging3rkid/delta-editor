@@ -263,7 +263,7 @@ static void fc_newline(FileContents * fc, int x, int y) {
     if (at_eol(x, y, fc)) {
         FileLine ** temp_f = malloc(sizeof(FileLine *) * fc->len - y);
         memcpy(temp_f, fc->data + y, fc->len - y);
-        
+        free(temp_f);
     }
 }
 
