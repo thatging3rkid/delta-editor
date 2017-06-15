@@ -42,8 +42,21 @@ static bool changed = false;
 /*
  * Function prototypes
  */
+static FileContents * read_file(FILE * fp);
+static void fc_cleanup(FileContents * fc);
+static void fc_insert(FileContents * fc, int x, int y, char ins_char);
+static void fc_remove(FileContents * fc, int x, int y);
+static void fc_newline(FileContents * fc, int x, int y);
+static void clear_status();
+static void set_status(char * new_status);
+static void set_status_err(char * new_status);
+static void fileset_status(int errsv);
+static void draw_footer(char * filename, int x, int y, bool changed);
+static void draw_file(FileContents * fc, int text_start);
+static void update_max();
 static bool at_eol(int x, int y, FileContents * fc);
-
+static bool at_bol(int x, int y, FileContents * fc);
+static void write_file(FileContents * fc, char * filename);
 
 /**
  * Reads a file from a file pointer and makes the FileContents for it
