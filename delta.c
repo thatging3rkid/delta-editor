@@ -263,6 +263,23 @@ static void fc_newline(FileContents * fc, int x, int y) {
     if (at_eol(x, y, fc)) {
         FileLine ** temp_f = malloc(sizeof(FileLine *) * fc->len - y);
         memcpy(temp_f, fc->data + y, fc->len - y);
+        FileLine * temp_l = malloc(sizeof(FileLine));
+        temp_l->len = 2;
+        temp_l->data = malloc(sizeof(char) * 2);
+        temp_l->data[0] = '\n';
+        temp_l->data[1] = '\0';
+
+        fc->data[y] = temp_l;
+        fc->len += 1;
+        FileLine ** temp_d = realloc(fc->data, fc->len);
+        if (temp_d == NULL) {
+            fprintf(stderr, "delta: an error has occured\n");
+            endwin();
+            exit(EXIT_FAILURE);
+        }
+        fc->data = temp_d;
+        memcpy(fc->data + y + 1, temp_f, fc->len - y);
+                                     
         free(temp_f);
     }
 }
