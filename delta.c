@@ -8,6 +8,7 @@
 #include <math.h>
 #include <errno.h>
 #include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -274,25 +275,29 @@ static void fc_remove(FileContents * fc, int x, int y) {
  */
 static void fc_newline(FileContents * fc, int x, int y) {
     if (at_eol(x, y, fc)) {
-        FileLine ** temp_f = malloc(sizeof(FileLine *) * fc->len - y);
-        memcpy(temp_f, fc->data + y, fc->len - y);
+        // Make a new temporary storage area
+        FileLine ** temp_f = malloc(sizeof(FileLine *) * (fc->len - y));
+
+        // Fill the temporary storage
+        memcpy(temp_f, fc->data + (y * (sizeof(void *))), fc->len - y - 1);
+
+        // Make an empty new line
         FileLine * temp_l = malloc(sizeof(FileLine));
         temp_l->len = 2;
         temp_l->data = malloc(sizeof(char) * 2);
         temp_l->data[0] = '\n';
         temp_l->data[1] = '\0';
 
+        // Fill in the new line
         fc->data[y] = temp_l;
         fc->len += 1;
+
+        // Move data back into the array
         FileLine ** temp_d = realloc(fc->data, fc->len);
-        if (temp_d == NULL) {
-            fprintf(stderr, "delta: an error has occured\n");
-            endwin();
-            exit(EXIT_FAILURE);
-        }
+        assert(temp_d != NULL);
         fc->data = temp_d;
-        memcpy(fc->data + y + 1, temp_f, fc->len - y);
-                                     
+        memcpy(fc->data + ((y + 1) * sizeof(void *)), temp_f, fc->len - y);
+        
         free(temp_f);
     }
 }
