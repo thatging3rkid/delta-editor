@@ -7,7 +7,7 @@
 cc = gcc
 
 # Define flags for a debug build (which should be done before an install)
-debug_flags = -Wall -Wextra -pedantic -std=c99 -ggdb
+debug_flags = -Wall -Wextra -pedantic -std=c99 -g -ggdb
 
 # Define flags for a final build (try and make it go super fast)
 build_flags = -std=c99 -finline-functions -o2

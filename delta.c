@@ -511,7 +511,6 @@ static void update_max() {
     getmaxyx(stdscr, max_pos.y, max_pos.x);
 }
 
-
 /**
  * Test if the current position is at the end of the line
  *
