@@ -295,9 +295,10 @@ static void fc_newline(FileContents * fc, int x, int y) {
         // Move data back into the array
         FileLine ** temp_d = realloc(fc->data, fc->len);
         assert(temp_d != NULL);
-        fc->data = temp_d;
-        memcpy(fc->data + ((y + 1) * sizeof(void *)), temp_f, fc->len - y);
-        
+        fc->data = temp_l;
+        memcpy(fc->data + ((y + 1) * sizeof(FileLine *)), temp_f, fc->len - y - 2);
+
+        // Free up the temporary storage
         free(temp_f);
     }
 }
