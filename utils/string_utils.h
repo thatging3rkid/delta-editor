@@ -9,6 +9,14 @@
 #define STRING_UTILS_LIB
 
 /**
+ * A structure for a String
+ */
+typedef struct {
+    char * data;
+    int len;
+} String;
+
+/**
  * Trim the spaces from a string
  *
  * @param string the raw string
